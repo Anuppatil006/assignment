@@ -1,1 +1,49 @@
 
+pipeline {
+    agent any
+    environment {
+        SSH_CREDENTIALS_ID = 'ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQCh6Jl5CN2f1HghR+F/IdHJK4+RvN4Be6oHz47CCtTMz3pr/DJ/C79+FNm0NW8bLChYbl3RLaw9vVQRyIQLVExpimsaF9ujr32DJXfszK25F33O4lJkdXmESYHMqn7GaUdiHap5yKAiF7j0IbcNdsxUjsnJLvhRwoYoTAvHWZdfxNwMA15FdnpUssPGCW85ZWboIogM0iFTD2CkzApfMUy2b9LMg4ArLCx2+wcjbTY5zEco0sJOBWIFF8S0T6nEuxzjzho27RDI9IvKOAZS2ZNpwqzmS43QvicGcm499msA7MrAuoil45ttqkuRGuWxrLlxB/VFr7Kz1NzHPeBl298N anuppatil038@gmail.com' // Jenkins credentials ID
+        REMOTE_SERVER_IP = 'ubuntu@13.201.22.249' // IP or hostname of the remote server
+        REMOTE_PATH = '/root' // Path on the remote server
+    }
+    stages {
+        stage('Checkout') {
+            steps {
+                // Pull code from Git repository
+                git url: 'https://github.com/Anuppatil006/assignment.git', branch: 'main'
+            }
+        }
+        stage('Build') {
+            steps {
+                // Build the application
+                sh 'npm install'
+                sh 'npm run build'
+            }
+        }
+        stage('Test') {
+            steps {
+                // Run tests
+                sh 'npm test'
+            }
+        }
+        stage('Deploy') {
+            steps {
+                withCredentials([sshUserPrivateKey(credentialsId: SSH_CREDENTIALS_ID, keyFileVariable: 'SSH_KEY', usernameVariable: 'USER')]) {
+                    script {
+                        // Deploy the application
+                        sh """
+                        scp -i ${SSH_KEY} -r * ${USER}@${REMOTE_SERVER_IP}:${REMOTE_PATH}
+                        ssh -i ${SSH_KEY} ${USER}@${REMOTE_SERVER_IP} 'cd ${REMOTE_PATH} && npm install --production && pm2 restart all'
+                        """
+                    }
+                }
+            }
+        }
+    }
+    post {
+        always {
+            echo 'Cleaning up...'
+            cleanWs()
+        }
+    }
+}
