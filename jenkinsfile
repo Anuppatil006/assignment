@@ -30,13 +30,20 @@ pipeline {
             }
         }
         stage('Deploy') {
-            steps {ubuntu@13.201.22.249 'docker pull ${REPOSITORY_URI}:latest && docker run -d -p 8080:8080 ${REPOSITORY_U>
-                    """
-                    sh command
-                }
-            }
+            steps stages {
+        stage('Deploy') {
+            steps {
+                withCredentials([sshUserPrivateKey(credentialsId: 'ec2-ssh-key', keyFileVariable: 'SSH_KEY', usernameVariable: 'USER')]) {
+                    script {
+                        def command = """
+                        ssh -i ${SSH_KEY} ${USER}@${EC2_PUBLIC_IP} 'docker pull my-app:latest && docker run -d -p 8080:8080 my-app:latest'
+                        """
+                        sh command
+                    }
         }
     }
+}
+}
     post {
         always {
             echo 'Cleaning up...'
